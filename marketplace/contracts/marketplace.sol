@@ -12,20 +12,69 @@ import "hardhat/console.sol";
 contract Marketplace is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
+    Counters.Counter private _itmesSold;
 
-    constructor() ERC721("Marketplace", "MKT") {}
+    uint256 listingPrice = 0.0001 ether;
+    
+    address payable owner;
 
-    function mintNFT(address recipient, string memory tokenURI)
-        public
-        onlyOwner
-        returns (uint256)
-    {
+    mapping (uint256 => MarketItem) private idToMarketItem;
+
+    struct MarketItem {
+        uint256 tokenId;
+        address payable seller;
+        address payable owner;
+        uint256 price;
+        uint256 croptype;
+        uint256 quantity;
+        bool isSold;
+        bool isPresent;
+    }
+
+    event idMarketItemCreated(
+        uint256 indexed tokenId,
+        address seller,
+        address owner,
+        uint256 price,
+        uint256 croptype,
+        uint256 quantity,
+        bool isSold,
+        bool isPresent;
+
+    );
+
+    constructor() ERC721("Marketplace Token", "CROPNFT") {
+        owner = payable(msg.sender);
+    }
+
+    modifier onlyOwner {
+        require(msg.sender == owner, "You are not the owner");
+        _;
+    }
+
+    function updateListingPrice(uint256 _listingPrice) {
+        listingPrice = _listingPrice;
+    }
+
+    function getListingPrice() public view returns (uint256) {
+        return listingPrice;
+    }
+
+    function createToken(string memory tokenURI, uint256 price) public returns (uint256) {
         _tokenIds.increment();
 
-        uint256 newItemId = _tokenIds.current();
-        _mint(recipient, newItemId);
-        _setTokenURI(newItemId, tokenURI);
+        uint256 newTokenId = _tokenIds.current();
 
-        return newItemId;
+        _mint(msg.sender, newTokenId);
+        _setTokenURI(newTokenId, tokenURI);
+
+        createMarketItem(newTokenId, price);
+
+        return newTokenId;
+    }
+
+    function createMarketItem(newTokenId, price) {
+        
     }
 }
+    
