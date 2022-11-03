@@ -18,7 +18,7 @@ contract Marketplace is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable {
     
     address payable owner;
 
-    mapping (uint256 => MarketItem) private idToMarketItem;
+    mapping (uint256 => MarketItem) private idMarketItem;
 
     struct MarketItem {
         uint256 tokenId;
@@ -73,8 +73,85 @@ contract Marketplace is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable {
         return newTokenId;
     }
 
-    function createMarketItem(newTokenId, price) {
+    function createMarketItem(uint256 tokenId, uint256 price) private{
+        require(price > 0, "Price must be at least 1");
+        require(msg.value == listingPrice, "Price must be equal to listing price");
+
+        idMarketItem[tokenId] = MarketItem(
+            tokenId,
+            payable(msg.sender),
+            payable(address(this)),
+            price,
+            0,
+            0,
+            false,
+            true
+        );
+
+        _transfer(msg.sender, address(this), tokenId);
+
+        emit idMarketItemCreated(
+            tokenId,
+            msg.sender,
+            address(this),
+            price,
+            0,
+            0,
+            false,
+            true
+        );
+
+    }
+
+    function reSellToken(uint256 tokenId, uint256 price) public payable{
+        require(idMarketItem[tokenId].owner == msg.sender, "You are not the owner of this token");
+        require(msg.value == listingPrice, "Price must be equal to listing price");
+
+        idMarketItem[tokenId].isSold = false;
+        idMarketItem[tokenId].seller = payable(msg.sender);
+        idMarketItem[tokenId].owner = payable(address(this));
+        idMarketItem[tokenId].price = price;
+
+        _itmesSold.decrement();
+
+        _transfer(msg.sender, address(this), tokenId);
         
+    }
+
+    function createMarketSell(uint256 tokenId) public payable {
+        uint256 price = idMarketItem[tokenId].price;
+
+        require(msg.value == price, "Please submit the asking price in order to complete the purchase");
+
+        idMarketItem[tokenId].owner = payable(msg.sender);
+        idMarketItem[tokenId].isSold = true;
+        idMarketItem[tokenId].owner = payable(address(0));
+
+        _itmesSold.increment();
+
+        _transfer(address(this), msg.sender, tokenId);
+
+        payable(owner).transfer(listingPrice);
+        payable(idMarketItem[tokenId].seller).transfer(msg.value);
+    }   
+
+    function fetchMarketItems() public view returns (MarketItem[] memory) {
+        uint256 itemCount = _tokenIds.current();
+        uint256 unSoldItemCount = _tokenIds.current() - _itmesSold.current();
+        uint256 currentIndex = 0;
+        
+
+        MarketItem[] memory items = new MarketItem[](itemCount);
+        for (uint i = 0; i < _tokenIds.current(); i++) {
+            if (idMarketItem[i + 1].isSold) {
+                uint currentId = idMarketItem[i + 1].tokenId;
+                MarketItem storage currentItem = idMarketItem[currentId];
+                items[currentIndex] = currentItem;
+                currentIndex += 1;
+            }
+        }
+
+        return items;
     }
 }
     
